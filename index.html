@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Khan Bank — Product Risk Rating Engine</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --navy:#0D2B5C;--navy-mid:#1B3A6B;--navy-light:#2A4F8E;
+  --gold:#C9AA71;--gold-light:#E8D5A3;--gold-dark:#A88940;
+  --off-white:#F8F9FB;--white:#fff;
+  --gray-100:#F1F3F5;--gray-200:#E9ECEF;--gray-300:#DEE2E6;
+  --gray-400:#CED4DA;--gray-500:#ADB5BD;--gray-600:#6C757D;
+  --gray-700:#495057;--gray-800:#343A40;
+  --r1:#2D6A4F;--r2:#40916C;--r3:#74C69D;--r4:#F4A261;--r5:#E76F51;--r6:#C1121F;
+  --r1-bg:#F0FAF5;--r2-bg:#E8F5EE;--r3-bg:#F2FBF5;--r4-bg:#FFF5EB;--r5-bg:#FFF0EC;--r6-bg:#FFF0EE;
+}
+html{font-size:16px}
+body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,'Arial',sans-serif;background:var(--off-white);color:var(--gray-800);min-height:100vh}
+
+/* HEADER */
+.header{background:var(--navy);padding:0 32px;box-shadow:0 2px 8px rgba(0,0,0,.3);position:sticky;top:0;z-index:100}
+.header-top{display:flex;align-items:center;height:58px;gap:20px}
+.logo{display:flex;align-items:center;gap:10px;color:#fff;font-size:17px;font-weight:700;letter-spacing:.4px}
+.logo-mark{width:32px;height:32px;background:var(--gold);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900;color:var(--navy)}
+.header-title{flex:1;color:rgba(255,255,255,.6);font-size:13px;padding-left:16px;border-left:1px solid rgba(255,255,255,.2)}
+.header-title span{color:#fff;font-weight:600}
+.header-actions{display:flex;gap:8px}
+.btn-header{background:transparent;border:1px solid rgba(255,255,255,.3);color:rgba(255,255,255,.85);font-size:12px;padding:5px 14px;border-radius:6px;cursor:pointer;transition:all .15s}
+.btn-header:hover{background:rgba(255,255,255,.1)}
+
+/* TABS */
+.tab-bar{display:flex;gap:0;background:rgba(0,0,0,.25);padding:0 32px}
+.tab-btn{background:transparent;border:none;color:rgba(255,255,255,.55);font-size:13px;font-weight:600;padding:10px 20px;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s;letter-spacing:.3px}
+.tab-btn:hover{color:rgba(255,255,255,.85)}
+.tab-btn.active{color:#fff;border-bottom-color:var(--gold)}
+
+/* LAYOUT */
+.app{max-width:1200px;margin:0 auto;padding:28px 24px}
+.tab-content{display:none}
+.tab-content.active{display:block}
+
+/* CARDS */
+.card{background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.07);overflow:hidden;margin-bottom:20px}
+.card-head{padding:16px 20px;border-bottom:1px solid var(--gray-200);display:flex;align-items:center;justify-content:space-between}
+.card-head h2{font-size:15px;font-weight:700;color:var(--navy)}
+.card-head p{font-size:12px;color:var(--gray-600);margin-top:2px}
+.card-body{padding:20px}
+
+/* RATING BADGE */
+.r-badge{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;font-size:13px;font-weight:800;color:#fff}
+.r1{background:var(--r1)}.r2{background:var(--r2)}.r3{background:var(--r3)}.r4{background:var(--r4)}.r5{background:var(--r5)}.r6{background:var(--r6)}
+
+/* ============ TAB 1: LIBRARY ============ */
+.library-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:14px 20px;background:var(--gray-100);border-bottom:1px solid var(--gray-200)}
+.search-input{padding:8px 14px;border:2px solid var(--gray-200);border-radius:8px;font-size:13px;outline:none;width:220px;transition:border .15s;background:#fff}
+.search-input:focus{border-color:var(--navy)}
+.filter-group{display:flex;gap:6px;flex-wrap:wrap}
+.f-btn{padding:5px 12px;border:2px solid var(--gray-200);background:#fff;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;color:var(--gray-700)}
+.f-btn:hover{border-color:var(--navy)}
+.f-btn.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.f-sep{width:1px;background:var(--gray-300);margin:0 4px}
+.r-btn.on-1{background:var(--r1);border-color:var(--r1);color:#fff}
+.r-btn.on-2{background:var(--r2);border-color:var(--r2);color:#fff}
+.r-btn.on-3{background:var(--r3);border-color:var(--r3);color:#fff}
+.r-btn.on-4{background:var(--r4);border-color:var(--r4);color:#fff}
+.r-btn.on-5{background:var(--r5);border-color:var(--r5);color:#fff}
+.r-btn.on-6{background:var(--r6);border-color:var(--r6);color:#fff}
+
+.lib-table{width:100%;border-collapse:collapse}
+.lib-table th{background:var(--navy);color:#fff;padding:10px 14px;text-align:left;font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer;user-select:none}
+.lib-table th:hover{background:var(--navy-mid)}
+.lib-table th.sorted-asc::after{content:' ↑'}
+.lib-table th.sorted-desc::after{content:' ↓'}
+.lib-table td{padding:10px 14px;font-size:13px;border-bottom:1px solid var(--gray-200);vertical-align:middle}
+.lib-table tr:last-child td{border-bottom:none}
+.lib-table tr:hover td{background:var(--gray-100);cursor:pointer}
+.lib-table tr.highlighted td{background:#FFF9E6}
+.prod-name{font-weight:600;color:var(--navy)}
+.cat-tag{display:inline-block;padding:2px 8px;background:var(--gray-100);border-radius:10px;font-size:11px;color:var(--gray-600);font-weight:600}
+.score-mini{font-size:11px;color:var(--gray-500)}
+
+/* Rating row colors */
+.row-r1 td:first-child{border-left:3px solid var(--r1)}
+.row-r2 td:first-child{border-left:3px solid var(--r2)}
+.row-r3 td:first-child{border-left:3px solid var(--r3)}
+.row-r4 td:first-child{border-left:3px solid var(--r4)}
+.row-r5 td:first-child{border-left:3px solid var(--r5)}
+.row-r6 td:first-child{border-left:3px solid var(--r6)}
+
+/* Summary stats bar */
+.stats-bar{display:flex;gap:8px;padding:10px 20px 0;background:var(--gray-100);border-bottom:1px solid var(--gray-200)}
+.stat-pill{display:flex;align-items:center;gap:6px;padding:5px 12px;background:#fff;border-radius:20px;font-size:12px;font-weight:600;border:1px solid var(--gray-200);margin-bottom:10px}
+.stat-pill .dot{width:10px;height:10px;border-radius:50%}
+
+/* ============ TAB 2: CALCULATOR ============ */
+.calc-grid{display:grid;grid-template-columns:1fr 380px;gap:20px}
+.param-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.param-block{background:var(--gray-100);border-radius:10px;padding:14px 16px;border-left:4px solid transparent;transition:border-color .2s}
+.param-block.active{border-left-color:var(--gold)}
+.param-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--navy);margin-bottom:4px}
+.param-weight{font-size:10px;color:var(--gray-500);margin-bottom:8px}
+.param-select{width:100%;padding:8px 10px;border:2px solid var(--gray-200);border-radius:7px;font-size:13px;background:#fff;cursor:pointer;outline:none;transition:border .15s}
+.param-select:focus{border-color:var(--navy)}
+.param-note{font-size:11px;color:var(--gray-600);margin-top:5px;line-height:1.4}
+
+.product-info-block{background:var(--gray-100);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+.product-info-block label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--navy);margin-bottom:5px}
+.product-info-block input,
+.product-info-block select{width:100%;padding:8px 12px;border:2px solid var(--gray-200);border-radius:7px;font-size:13px;outline:none;background:#fff;transition:border .15s}
+.product-info-block input:focus,
+.product-info-block select:focus{border-color:var(--navy)}
+
+.leverage-toggle{display:flex;align-items:center;gap:10px;background:var(--gray-100);border-radius:10px;padding:12px 16px;margin-top:2px;cursor:pointer}
+.toggle-box{width:40px;height:22px;background:var(--gray-400);border-radius:11px;position:relative;transition:background .2s;cursor:pointer}
+.toggle-box.on{background:var(--r6)}
+.toggle-knob{position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.toggle-box.on .toggle-knob{left:21px}
+.toggle-label{font-size:13px;font-weight:600;color:var(--gray-700)}
+.toggle-warn{font-size:11px;color:var(--r6);display:none}
+.toggle-box.on ~ .toggle-warn{display:block}
+
+/* RESULT PANEL */
+.result-panel{position:sticky;top:80px}
+.result-card{background:#fff;border-radius:16px;padding:24px;box-shadow:0 4px 20px rgba(0,0,0,.10);text-align:center;margin-bottom:16px;border-top:5px solid var(--gray-200);transition:border-color .3s}
+.result-lbl{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gray-500);margin-bottom:8px}
+.result-num{font-size:72px;font-weight:900;line-height:1;transition:all .3s}
+.result-name{font-size:16px;font-weight:700;margin-bottom:4px;transition:color .3s}
+.result-raw{font-size:12px;color:var(--gray-500);margin-bottom:16px}
+.result-badges{display:flex;justify-content:center;gap:6px;margin-bottom:16px}
+.r-scale-dot{width:24px;height:8px;border-radius:4px}
+
+/* CONTRIBUTION CHART */
+.contrib-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--gray-600);margin-bottom:10px;text-align:left}
+.contrib-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.contrib-pname{font-size:11px;color:var(--gray-700);width:100px;text-align:right;flex-shrink:0}
+.contrib-track{flex:1;height:14px;background:var(--gray-200);border-radius:4px;overflow:hidden;position:relative}
+.contrib-fill{height:100%;border-radius:4px;transition:width .4s ease;background:var(--navy)}
+.contrib-val{font-size:10px;color:var(--gray-600);width:30px;flex-shrink:0}
+
+/* BREAKEVEN RANGES */
+.range-table{width:100%;border-collapse:collapse;margin-top:8px}
+.range-table th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--gray-600);padding:4px 8px;text-align:left;background:var(--gray-100)}
+.range-table td{font-size:12px;padding:6px 8px;border-bottom:1px solid var(--gray-200)}
+.range-table tr:last-child td{border-bottom:none}
+
+/* SAVE btn */
+.btn-save{width:100%;background:var(--navy);color:#fff;font-size:14px;font-weight:700;padding:11px;border-radius:8px;border:none;cursor:pointer;transition:all .2s;margin-top:12px}
+.btn-save:hover{background:var(--navy-mid)}
+.btn-secondary{background:transparent;border:2px solid var(--navy);color:var(--navy);font-size:13px;font-weight:600;padding:8px 18px;border-radius:7px;cursor:pointer;transition:all .15s}
+.btn-secondary:hover{background:var(--gray-100)}
+
+/* ============ TAB 3: METHODOLOGY ============ */
+.method-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.method-intro{grid-column:1/-1;background:linear-gradient(135deg,var(--navy) 0%,var(--navy-mid) 100%);border-radius:12px;padding:24px 28px;color:#fff}
+.method-intro h2{font-size:20px;font-weight:800;margin-bottom:8px}
+.method-intro p{font-size:14px;color:rgba(255,255,255,.75);line-height:1.7}
+.method-card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.07)}
+.method-card h3{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--gray-200);display:flex;align-items:center;gap:8px}
+.param-detail{margin-bottom:14px}
+.param-detail h4{font-size:12px;font-weight:700;color:var(--navy);margin-bottom:6px}
+.level-table{width:100%;border-collapse:collapse}
+.level-table td{padding:5px 8px;font-size:12px;border-bottom:1px solid var(--gray-200);line-height:1.4}
+.level-table tr:last-child td{border-bottom:none}
+.level-table td:first-child{font-weight:700;white-space:nowrap}
+.formula-box{background:var(--gray-100);border-radius:8px;padding:14px 16px;font-size:13px;font-family:monospace;color:var(--navy);margin:10px 0;line-height:1.6;border-left:3px solid var(--gold)}
+.override-list{list-style:none;display:flex;flex-direction:column;gap:8px}
+.override-list li{padding:10px 14px;border-radius:8px;font-size:13px;line-height:1.4;border-left:4px solid}
+.ov-leverage{background:#FFF0EE;border-color:var(--r6);color:#7B1717}
+.ov-unrated{background:#FFF5EB;border-color:var(--r5);color:#7B4200}
+.ov-review{background:#EFF6FF;border-color:#1D4ED8;color:#1E3A5F}
+.compare-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+.compare-item{padding:12px;border:2px solid var(--gray-200);border-radius:8px;text-align:center}
+.compare-item .org{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--gray-500);margin-bottom:4px}
+.compare-item .scale{font-size:20px;font-weight:900;color:var(--navy);margin-bottom:4px}
+.compare-item .desc{font-size:11px;color:var(--gray-600)}
+.intl-map-table{width:100%;border-collapse:collapse;margin-top:8px}
+.intl-map-table th{background:var(--navy);color:#fff;padding:7px 10px;font-size:11px;font-weight:600}
+.intl-map-table td{padding:7px 10px;font-size:12px;border-bottom:1px solid var(--gray-200)}
+.intl-map-table tr:nth-child(even) td{background:var(--gray-100)}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--navy);color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;transform:translateY(80px);opacity:0;transition:all .3s;z-index:999}
+.toast.show{transform:translateY(0);opacity:1}
+
+/* PRINT */
+@media print{
+  .header .tab-bar,.header-actions,.library-toolbar{display:none!important}
+  .tab-content{display:block!important}
+  .app{max-width:100%;padding:0}
+}
+
+/* RESPONSIVE */
+@media(max-width:900px){
+  .calc-grid{grid-template-columns:1fr}
+  .result-panel{position:static}
+  .method-grid{grid-template-columns:1fr}
+  .param-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div class="logo">
+      <div class="logo-mark">K</div>
+      Khan Bank
+    </div>
+    <div class="header-title">Internal Tool · <span>Product Risk Rating Engine</span> · v1.0</div>
+    <div class="header-actions">
+      <button class="btn-header" onclick="exportLibraryCSV()">⬇ Export CSV</button>
+      <button class="btn-header" onclick="window.print()">⎙ Print</button>
+    </div>
+  </div>
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('library',this)">📋 Product Library</button>
+    <button class="tab-btn" onclick="switchTab('calculator',this)">⚙️ Rating Calculator</button>
+    <button class="tab-btn" onclick="switchTab('methodology',this)">📐 Methodology</button>
+  </div>
+</div>
+
+<div class="app">
+
+<!-- ======== TAB 1: LIBRARY ======== -->
+<div class="tab-content active" id="tab-library">
+  <div class="card">
+    <div class="stats-bar" id="stats-bar"></div>
+    <div class="library-toolbar">
+      <input class="search-input" id="lib-search" type="text" placeholder="🔍 Search products..." oninput="renderLibrary()">
+      <div class="f-sep"></div>
+      <div class="filter-group" id="cat-filters"></div>
+      <div class="f-sep"></div>
+      <div class="filter-group">
+        <span style="font-size:12px;color:var(--gray-600);font-weight:600;align-self:center">Rating:</span>
+        <button class="f-btn r-btn" data-r="1" onclick="toggleRatingFilter(1,this)">1</button>
+        <button class="f-btn r-btn" data-r="2" onclick="toggleRatingFilter(2,this)">2</button>
+        <button class="f-btn r-btn" data-r="3" onclick="toggleRatingFilter(3,this)">3</button>
+        <button class="f-btn r-btn" data-r="4" onclick="toggleRatingFilter(4,this)">4</button>
+        <button class="f-btn r-btn" data-r="5" onclick="toggleRatingFilter(5,this)">5</button>
+        <button class="f-btn r-btn" data-r="6" onclick="toggleRatingFilter(6,this)">6</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="lib-table">
+        <thead>
+          <tr>
+            <th onclick="sortLib('name',this)">Product Name</th>
+            <th onclick="sortLib('category',this)">Category</th>
+            <th onclick="sortLib('rating',this)" style="width:80px">Rating</th>
+            <th style="width:60px">Cap. Risk</th>
+            <th style="width:60px">Volatility</th>
+            <th style="width:60px">Credit</th>
+            <th style="width:60px">Liquidity</th>
+            <th style="width:70px">Complexity</th>
+            <th style="width:60px">Horizon</th>
+            <th style="width:70px">Raw Score</th>
+            <th style="width:80px">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="lib-tbody"></tbody>
+      </table>
+    </div>
+    <div style="padding:10px 20px;font-size:12px;color:var(--gray-500)" id="lib-count"></div>
+  </div>
+</div>
+
+<!-- ======== TAB 2: CALCULATOR ======== -->
+<div class="tab-content" id="tab-calculator">
+  <div class="calc-grid">
+    <!-- LEFT: INPUTS -->
+    <div>
+      <div class="card">
+        <div class="card-head">
+          <div><h2>Product Details</h2><p>Name and category of the product being rated</p></div>
+        </div>
+        <div class="card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div style="grid-column:1/-1">
+            <div class="product-info-block">
+              <label>Product Name</label>
+              <input id="c-name" type="text" placeholder="e.g. Corporate Bond BBB 3yr" oninput="updateCalc()">
+            </div>
+          </div>
+          <div class="product-info-block">
+            <label>Category</label>
+            <select id="c-cat" onchange="updateCalc()">
+              <option value="">Select category...</option>
+              <option>Fixed Deposits</option>
+              <option>Government Securities</option>
+              <option>Corporate Bonds</option>
+              <option>Bond Funds</option>
+              <option>Equities</option>
+              <option>Equity Funds</option>
+              <option>Balanced Funds</option>
+              <option>Structured Products</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="product-info-block">
+            <label>Sub-Category / Notes</label>
+            <input id="c-subcat" type="text" placeholder="e.g. Investment Grade, Short-term">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div><h2>Risk Parameters</h2><p>Rate each dimension 1 (lowest risk) to 6 (highest risk) — the formula computes the final rating automatically</p></div>
+        </div>
+        <div class="card-body">
+          <div class="param-grid" id="param-grid"></div>
+          <div class="leverage-toggle" onclick="toggleLeverage()" style="margin-top:14px">
+            <div class="toggle-box" id="lev-toggle"><div class="toggle-knob"></div></div>
+            <div>
+              <div class="toggle-label">Leveraged / Margin Product</div>
+              <div class="toggle-warn" id="lev-warn">⚠ Leverage override: Final rating automatically set to 6</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><div><h2>Parameter Reference Guide</h2><p>Quick reference for scoring each dimension</p></div></div>
+        <div class="card-body" style="overflow-x:auto">
+          <table class="range-table">
+            <thead><tr><th>Level</th><th>Capital at Risk</th><th>Volatility (σ p.a.)</th><th>Credit Quality</th><th>Liquidity</th><th>Complexity</th><th>Horizon</th></tr></thead>
+            <tbody id="ref-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: RESULT -->
+    <div class="result-panel">
+      <div class="result-card" id="result-card">
+        <div class="result-lbl">Computed Risk Rating</div>
+        <div class="result-num" id="r-num">—</div>
+        <div class="result-name" id="r-name">Set parameters above</div>
+        <div class="result-raw" id="r-raw"></div>
+        <div class="result-badges" id="r-scale"></div>
+        <div class="contrib-title">Parameter Contribution Breakdown</div>
+        <div id="contrib-chart"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><div><h2>Client Suitability Map</h2><p>Which client profiles can purchase this product</p></div></div>
+        <div class="card-body" id="suitability-map"></div>
+      </div>
+
+      <button class="btn-save" onclick="saveToLibrary()">+ Add to Product Library</button>
+      <div style="margin-top:8px;text-align:center">
+        <button class="btn-secondary" onclick="clearCalc()">↺ Clear / New Product</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======== TAB 3: METHODOLOGY ======== -->
+<div class="tab-content" id="tab-methodology">
+  <div class="method-grid">
+    <div class="method-intro">
+      <h2>Khan Bank Product Risk Rating Methodology</h2>
+      <p>Each Khan Bank investment product is assigned a risk rating from <strong>1 (Conservative)</strong> to <strong>6 (Very Aggressive)</strong> using a transparent, multi-parameter weighted scoring model. The methodology is aligned with international best practices from MAS (Singapore), ESMA PRIIP, and leading private banks, adapted for the Mongolian market context.</p>
+    </div>
+
+    <div class="method-card">
+      <h3>⚖️ Scoring Formula</h3>
+      <div class="formula-box">Rating = f(Weighted Score)<br><br>
+Raw Score = <br>
+  Capital at Risk    × 30% +<br>
+  Market Volatility  × 25% +<br>
+  Credit Risk        × 20% +<br>
+  Liquidity Risk     × 15% +<br>
+  Product Complexity ×  5% +<br>
+  Investment Horizon ×  5%<br><br>
+Final Rating = ceil(Raw) if decimal ≥ 0.15<br>
+              floor(Raw) if decimal &lt; 0.15<br>
+Leverage override: Final Rating = 6</div>
+      <p style="font-size:12px;color:var(--gray-600);line-height:1.5">The 0.15 threshold prevents minor parameter differences from causing arbitrary rating jumps. Leverage is an unconditional override — any leveraged product is automatically Rating 6 regardless of other parameters.</p>
+    </div>
+
+    <div class="method-card">
+      <h3>🔒 Override Rules</h3>
+      <ul class="override-list">
+        <li class="ov-leverage"><strong>Leverage / Margin:</strong> Any product with borrowing or margin trading is automatically Rating 6, regardless of other parameter scores. No exceptions.</li>
+        <li class="ov-unrated"><strong>Unrated / Distressed Issuers:</strong> For bonds from unrated or CCC-rated issuers, minimum Credit Risk = 5. Final rating cannot be lower than 4.</li>
+        <li class="ov-review"><strong>Annual Review:</strong> All product ratings must be reviewed at minimum annually, or immediately upon material change in issuer credit quality, market conditions, or product structure.</li>
+        <li class="ov-review"><strong>New Products:</strong> Any product not listed in the approved library must be rated by the Product Risk Committee before client distribution.</li>
+      </ul>
+    </div>
+
+    <div class="method-card" style="grid-column:1/-1">
+      <h3>📊 Parameter Level Definitions</h3>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+        <div class="param-detail">
+          <h4>1. Capital at Risk (30%)</h4>
+          <table class="level-table">
+            <tr><td>1</td><td>Fully protected — deposit guarantee or capital protection</td></tr>
+            <tr><td>2</td><td>Capital protected with conditions (e.g. hold to maturity)</td></tr>
+            <tr><td>3</td><td>Low risk of loss — &lt;5% capital at risk in stress scenario</td></tr>
+            <tr><td>4</td><td>Moderate — 5–25% potential capital loss</td></tr>
+            <tr><td>5</td><td>Significant — 25–100% potential capital loss</td></tr>
+            <tr><td>6</td><td>Full loss + beyond — leveraged, losses exceed principal</td></tr>
+          </table>
+        </div>
+        <div class="param-detail">
+          <h4>2. Market Volatility (25%)</h4>
+          <table class="level-table">
+            <tr><td>1</td><td>&lt;1% annual std dev (deposits, T-bills)</td></tr>
+            <tr><td>2</td><td>1–3% (short-term government bonds)</td></tr>
+            <tr><td>3</td><td>3–8% (medium bonds, balanced)</td></tr>
+            <tr><td>4</td><td>8–18% (equity funds, HY bonds)</td></tr>
+            <tr><td>5</td><td>18–35% (individual equities, EM)</td></tr>
+            <tr><td>6</td><td>&gt;35% (derivatives, leveraged products)</td></tr>
+          </table>
+        </div>
+        <div class="param-detail">
+          <h4>3. Credit / Counterparty Risk (20%)</h4>
+          <table class="level-table">
+            <tr><td>1</td><td>Government-guaranteed / deposit-insured</td></tr>
+            <tr><td>2</td><td>AAA–AA sovereign / quasi-sovereign</td></tr>
+            <tr><td>3</td><td>A–BBB investment grade corporate</td></tr>
+            <tr><td>4</td><td>BB below investment grade (high yield)</td></tr>
+            <tr><td>5</td><td>B / CCC speculative grade</td></tr>
+            <tr><td>6</td><td>Unrated / distressed / near default</td></tr>
+          </table>
+        </div>
+        <div class="param-detail">
+          <h4>4. Liquidity Risk (15%)</h4>
+          <table class="level-table">
+            <tr><td>1</td><td>Daily, T+0 to T+1 (deposits, money market)</td></tr>
+            <tr><td>2</td><td>T+1 to T+3, daily dealing (open-end funds)</td></tr>
+            <tr><td>3</td><td>T+3 to T+7, secondary market trading</td></tr>
+            <tr><td>4</td><td>Monthly or quarterly redemption windows</td></tr>
+            <tr><td>5</td><td>Annual or longer lock-up periods</td></tr>
+            <tr><td>6</td><td>Fully illiquid — no redemption option</td></tr>
+          </table>
+        </div>
+        <div class="param-detail">
+          <h4>5. Product Complexity (5%)</h4>
+          <table class="level-table">
+            <tr><td>1</td><td>Simple and transparent (deposits, plain bonds)</td></tr>
+            <tr><td>2</td><td>Straightforward (open-end vanilla funds)</td></tr>
+            <tr><td>3</td><td>Moderate (structured deposits, optionality)</td></tr>
+            <tr><td>4</td><td>Complex (multi-asset, hybrid instruments)</td></tr>
+            <tr><td>5</td><td>Highly complex (exotic structures, path-dependent)</td></tr>
+            <tr><td>6</td><td>Very complex (derivatives, CDOs, leveraged)</td></tr>
+          </table>
+        </div>
+        <div class="param-detail">
+          <h4>6. Investment Horizon (5%)</h4>
+          <table class="level-table">
+            <tr><td>1</td><td>Less than 3 months</td></tr>
+            <tr><td>2</td><td>3 months to 1 year</td></tr>
+            <tr><td>3</td><td>1 to 3 years</td></tr>
+            <tr><td>4</td><td>3 to 5 years</td></tr>
+            <tr><td>5</td><td>5 to 10 years</td></tr>
+            <tr><td>6</td><td>More than 10 years / perpetual</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="method-card">
+      <h3>🌐 International Benchmark Comparison</h3>
+      <table class="intl-map-table">
+        <thead><tr><th>KB Rating</th><th>KB Label</th><th>MAS (SG)</th><th>ESMA PRIIP</th><th>Typical Products</th></tr></thead>
+        <tbody>
+          <tr><td><span class="r-badge r1">1</span></td><td>Conservative</td><td>CRR 1</td><td>SRI 1</td><td>Deposits, T-bills, capital-guaranteed</td></tr>
+          <tr><td><span class="r-badge r2">2</span></td><td>Moderately Conservative</td><td>CRR 2</td><td>SRI 2</td><td>Gov bonds, FX deposits, gov bond funds</td></tr>
+          <tr><td><span class="r-badge r3">3</span></td><td>Moderate</td><td>CRR 3</td><td>SRI 3</td><td>IG corporate bonds, balanced funds</td></tr>
+          <tr><td><span class="r-badge r4">4</span></td><td>Moderately Aggressive</td><td>CRR 4</td><td>SRI 4–5</td><td>HY bonds, equity funds DM, mixed funds</td></tr>
+          <tr><td><span class="r-badge r5">5</span></td><td>Aggressive</td><td>CRR 4–5</td><td>SRI 5–6</td><td>Individual equities, EM funds, thematic</td></tr>
+          <tr><td><span class="r-badge r6">6</span></td><td>Very Aggressive</td><td>CRR 5</td><td>SRI 6–7</td><td>Leveraged products, derivatives, complex structured</td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:11px;color:var(--gray-500);margin-top:8px">MAS = Monetary Authority of Singapore CRR. ESMA PRIIP = European Packaged Retail Investment Products SRI scale (1–7). KB uses 6 levels for consistency with its client risk profile (IR1–IR6).</p>
+    </div>
+
+    <div class="method-card">
+      <h3>🔗 Client–Product Matching Rule</h3>
+      <p style="font-size:13px;color:var(--gray-600);margin-bottom:12px">Client risk rating (from profiling) must be ≥ product risk rating for a standard suitable recommendation.</p>
+      <table class="intl-map-table">
+        <thead><tr><th>Scenario</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td>Product rating ≤ Client rating</td><td>✅ Fully suitable — proceed</td></tr>
+          <tr><td>Product rating = Client rating + 1</td><td>⚠️ Client acknowledgment + RM note on file</td></tr>
+          <tr><td>Product rating = Client rating + 2</td><td>🚫 Formal waiver + Senior RM / Compliance sign-off</td></tr>
+          <tr><td>Product rating &gt; Client rating + 2</td><td>🛑 Cannot proceed — re-profiling or PI assessment required</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</div><!-- end .app -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+const WEIGHTS = { capRisk:0.30, volatility:0.25, credit:0.20, liquidity:0.15, complexity:0.05, horizon:0.05 };
+
+const PARAM_META = [
+  { key:'capRisk',    label:'Capital at Risk',    weight:'30%',
+    levels:['Fully protected / deposit-guaranteed','Capital protected with conditions','Low risk of capital loss (<5% stress)','Moderate capital at risk (5–25%)','Significant capital at risk (25–100%)','Full loss + beyond (leveraged)'] },
+  { key:'volatility', label:'Market Volatility',  weight:'25%',
+    levels:['<1% annual std dev','1–3% annual std dev','3–8% annual std dev','8–18% annual std dev','18–35% annual std dev','>35% annual std dev'] },
+  { key:'credit',     label:'Credit / Counterparty Risk', weight:'20%',
+    levels:['Gov-guaranteed / deposit-insured','AAA–AA sovereign / quasi-sovereign','A–BBB investment grade','BB below investment grade (HY)','B / CCC speculative grade','Unrated / distressed / near default'] },
+  { key:'liquidity',  label:'Liquidity Risk',     weight:'15%',
+    levels:['Daily, T+0–T+1 (deposits, MM funds)','T+1–T+3, daily dealing (open-end funds)','T+3–T+7, secondary market','Monthly or quarterly redemptions','Annual or longer lock-up',  'Fully illiquid — no redemption'] },
+  { key:'complexity', label:'Product Complexity', weight:'5%',
+    levels:['Simple and transparent (deposits, plain bonds)','Straightforward (vanilla open-end funds)','Moderate (structured deposits, optionality)','Complex (multi-asset, hybrid)','Highly complex (exotic, path-dependent)','Very complex (derivatives, CDOs)'] },
+  { key:'horizon',    label:'Investment Horizon', weight:'5%',
+    levels:['< 3 months','3 months – 1 year','1 – 3 years','3 – 5 years','5 – 10 years','> 10 years / perpetual'] }
+];
+
+const RATING_LABELS = ['','Conservative','Mod. Conservative','Moderate','Mod. Aggressive','Aggressive','Very Aggressive'];
+const RATING_COLORS = ['','#2D6A4F','#40916C','#74C69D','#F4A261','#E76F51','#C1121F'];
+
+const RAW_PRODUCTS = [
+  // Fixed Deposits
+  {name:'Fixed Deposit MNT — Short-term (≤3mo)',    category:'Fixed Deposits',        params:{capRisk:1,volatility:1,credit:1,liquidity:1,complexity:1,horizon:1}, leverage:false},
+  {name:'Fixed Deposit MNT — Medium-term (3–12mo)', category:'Fixed Deposits',        params:{capRisk:1,volatility:1,credit:1,liquidity:1,complexity:1,horizon:2}, leverage:false},
+  {name:'Fixed Deposit MNT — Long-term (1–3yr)',    category:'Fixed Deposits',        params:{capRisk:1,volatility:1,credit:1,liquidity:2,complexity:1,horizon:3}, leverage:false},
+  {name:'Fixed Deposit MNT — Long-term (3–5yr)',    category:'Fixed Deposits',        params:{capRisk:2,volatility:1,credit:1,liquidity:2,complexity:1,horizon:4}, leverage:false},
+  {name:'Fixed Deposit USD — Short-term (≤6mo)',    category:'Fixed Deposits',        params:{capRisk:1,volatility:1,credit:1,liquidity:1,complexity:1,horizon:2}, leverage:false},
+  {name:'Fixed Deposit USD — Long-term (1–3yr)',    category:'Fixed Deposits',        params:{capRisk:2,volatility:2,credit:1,liquidity:2,complexity:1,horizon:3}, leverage:false},
+  // Gov Securities
+  {name:'Mongolia Gov T-Bill (≤1yr)',               category:'Government Securities', params:{capRisk:1,volatility:1,credit:2,liquidity:2,complexity:1,horizon:2}, leverage:false},
+  {name:'Mongolia Gov Bond (1–5yr)',                category:'Government Securities', params:{capRisk:2,volatility:2,credit:2,liquidity:2,complexity:1,horizon:3}, leverage:false},
+  {name:'Mongolia Gov Bond (5–10yr)',               category:'Government Securities', params:{capRisk:3,volatility:3,credit:2,liquidity:3,complexity:1,horizon:5}, leverage:false},
+  // Corporate Bonds — IG
+  {name:'Corporate Bond — Grade A (1–5yr)',         category:'Corporate Bonds',       params:{capRisk:2,volatility:2,credit:3,liquidity:3,complexity:2,horizon:4}, leverage:false},
+  {name:'Corporate Bond — Grade BBB (1–3yr)',       category:'Corporate Bonds',       params:{capRisk:3,volatility:2,credit:3,liquidity:3,complexity:2,horizon:3}, leverage:false},
+  {name:'Corporate Bond — Grade BBB (3–7yr)',       category:'Corporate Bonds',       params:{capRisk:3,volatility:3,credit:3,liquidity:3,complexity:2,horizon:4}, leverage:false},
+  // Corporate Bonds — HY
+  {name:'Corporate Bond — High Yield BB (≤3yr)',    category:'Corporate Bonds',       params:{capRisk:4,volatility:3,credit:4,liquidity:3,complexity:2,horizon:3}, leverage:false},
+  {name:'Corporate Bond — High Yield BB (3–7yr)',   category:'Corporate Bonds',       params:{capRisk:4,volatility:4,credit:4,liquidity:4,complexity:3,horizon:4}, leverage:false},
+  {name:'Corporate Bond — High Yield B (any)',      category:'Corporate Bonds',       params:{capRisk:5,volatility:4,credit:5,liquidity:4,complexity:3,horizon:4}, leverage:false},
+  // Bond Funds
+  {name:'Government Bond Fund',                     category:'Bond Funds',            params:{capRisk:2,volatility:2,credit:2,liquidity:2,complexity:2,horizon:3}, leverage:false},
+  {name:'Investment Grade Corporate Bond Fund',     category:'Bond Funds',            params:{capRisk:3,volatility:3,credit:3,liquidity:2,complexity:2,horizon:3}, leverage:false},
+  {name:'Mixed Bond Fund (Gov + Corp)',             category:'Bond Funds',            params:{capRisk:3,volatility:3,credit:3,liquidity:2,complexity:2,horizon:4}, leverage:false},
+  {name:'High-Yield Bond Fund',                     category:'Bond Funds',            params:{capRisk:4,volatility:4,credit:4,liquidity:3,complexity:3,horizon:4}, leverage:false},
+  {name:'Emerging Market Bond Fund',               category:'Bond Funds',            params:{capRisk:4,volatility:4,credit:4,liquidity:3,complexity:3,horizon:4}, leverage:false},
+  // Equities
+  {name:'MSE Listed Equity — Blue Chip',            category:'Equities',              params:{capRisk:5,volatility:5,credit:3,liquidity:3,complexity:2,horizon:5}, leverage:false},
+  {name:'MSE Listed Equity — Growth / Small Cap',   category:'Equities',              params:{capRisk:5,volatility:5,credit:4,liquidity:3,complexity:3,horizon:5}, leverage:false},
+  {name:'International Listed Equity',             category:'Equities',              params:{capRisk:5,volatility:5,credit:3,liquidity:3,complexity:3,horizon:5}, leverage:false},
+  // Equity Funds
+  {name:'Diversified Equity Fund (Developed Markets)',category:'Equity Funds',        params:{capRisk:4,volatility:4,credit:3,liquidity:2,complexity:2,horizon:5}, leverage:false},
+  {name:'Emerging Markets Equity Fund',            category:'Equity Funds',          params:{capRisk:5,volatility:5,credit:4,liquidity:2,complexity:3,horizon:5}, leverage:false},
+  {name:'Sector / Thematic Equity Fund',           category:'Equity Funds',          params:{capRisk:5,volatility:5,credit:4,liquidity:2,complexity:3,horizon:5}, leverage:false},
+  // Balanced
+  {name:'Balanced Fund (40% Equity / 60% Bond)',   category:'Balanced Funds',        params:{capRisk:3,volatility:3,credit:3,liquidity:2,complexity:2,horizon:4}, leverage:false},
+  {name:'Balanced Fund (60% Equity / 40% Bond)',   category:'Balanced Funds',        params:{capRisk:4,volatility:4,credit:3,liquidity:2,complexity:2,horizon:5}, leverage:false},
+];
+
+// Compute ratings on load
+let products = RAW_PRODUCTS.map(p => ({ ...p, rating: computeRating(p.params, p.leverage), rawScore: getRawScore(p.params) }));
+
+function getRawScore(p){
+  return p.capRisk*0.30 + p.volatility*0.25 + p.credit*0.20 + p.liquidity*0.15 + p.complexity*0.05 + p.horizon*0.05;
+}
+function computeRating(p, leverage){
+  if(leverage) return 6;
+  const raw = getRawScore(p);
+  const frac = raw - Math.floor(raw);
+  const r = frac < 0.15 ? Math.floor(raw) : Math.ceil(raw);
+  return Math.min(6, Math.max(1, r));
+}
+
+// ============================================================
+// LIBRARY
+// ============================================================
+let activeCategories = new Set();
+let activeRatings = new Set();
+let sortKey = 'rating', sortDir = 1;
+
+function initCategoryFilters(){
+  const cats = [...new Set(products.map(p=>p.category))];
+  const html = `<button class="f-btn on" data-cat="all" onclick="toggleCatFilter('all',this)">All</button>` +
+    cats.map(c=>`<button class="f-btn" data-cat="${c}" onclick="toggleCatFilter('${c}',this)">${c}</button>`).join('');
+  document.getElementById('cat-filters').innerHTML = html;
+}
+
+function toggleCatFilter(cat, el){
+  const all = document.querySelector('[data-cat="all"]');
+  if(cat==='all'){
+    activeCategories.clear();
+    document.querySelectorAll('[data-cat]').forEach(b=>b.classList.remove('on'));
+    all.classList.add('on');
+  } else {
+    all.classList.remove('on');
+    el.classList.toggle('on');
+    if(el.classList.contains('on')) activeCategories.add(cat); else activeCategories.delete(cat);
+    if(activeCategories.size===0) all.classList.add('on');
+  }
+  renderLibrary();
+}
+
+function toggleRatingFilter(r, el){
+  const cls = `on-${r}`;
+  el.classList.toggle(cls);
+  if(el.classList.contains(cls)) activeRatings.add(r); else activeRatings.delete(r);
+  renderLibrary();
+}
+
+function sortLib(key, th){
+  if(sortKey===key) sortDir*=-1; else { sortKey=key; sortDir=1; }
+  document.querySelectorAll('.lib-table th').forEach(t=>{t.classList.remove('sorted-asc','sorted-desc')});
+  th.classList.add(sortDir===1?'sorted-asc':'sorted-desc');
+  renderLibrary();
+}
+
+function renderLibrary(){
+  const query = document.getElementById('lib-search').value.toLowerCase();
+  let filtered = products.filter(p=>{
+    if(query && !p.name.toLowerCase().includes(query) && !p.category.toLowerCase().includes(query)) return false;
+    if(activeCategories.size>0 && !activeCategories.has(p.category)) return false;
+    if(activeRatings.size>0 && !activeRatings.has(p.rating)) return false;
+    return true;
+  });
+  filtered.sort((a,b)=>{
+    let va=a[sortKey], vb=b[sortKey];
+    if(typeof va==='string') return va.localeCompare(vb)*sortDir;
+    return (va-vb)*sortDir;
+  });
+
+  // Stats
+  const ratingCounts = [0,0,0,0,0,0];
+  products.forEach(p=>ratingCounts[p.rating-1]++);
+  document.getElementById('stats-bar').innerHTML = ratingCounts.map((c,i)=>
+    c>0 ? `<div class="stat-pill"><div class="dot" style="background:${RATING_COLORS[i+1]}"></div><b>Rating ${i+1}</b>: ${c} products</div>` : ''
+  ).join('');
+
+  const tbody = document.getElementById('lib-tbody');
+  tbody.innerHTML = filtered.map(p=>`
+    <tr class="row-r${p.rating}" onclick="editProduct('${escHtml(p.name)}')">
+      <td><span class="prod-name">${p.name}</span></td>
+      <td><span class="cat-tag">${p.category}</span></td>
+      <td><span class="r-badge r${p.rating}">${p.rating}</span> <span style="font-size:11px;color:var(--gray-600)">${RATING_LABELS[p.rating]}</span></td>
+      <td style="text-align:center">${p.params.capRisk}</td>
+      <td style="text-align:center">${p.params.volatility}</td>
+      <td style="text-align:center">${p.params.credit}</td>
+      <td style="text-align:center">${p.params.liquidity}</td>
+      <td style="text-align:center">${p.params.complexity}</td>
+      <td style="text-align:center">${p.params.horizon}</td>
+      <td><span class="score-mini">${p.rawScore.toFixed(2)}</span></td>
+      <td><button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();editProduct('${escHtml(p.name)}')">Edit</button></td>
+    </tr>`).join('');
+
+  document.getElementById('lib-count').textContent = `Showing ${filtered.length} of ${products.length} products`;
+}
+
+function escHtml(s){ return s.replace(/'/g,"\\'"); }
+
+function editProduct(name){
+  const p = products.find(x=>x.name===name);
+  if(!p) return;
+  switchTab('calculator', document.querySelectorAll('.tab-btn')[1]);
+  document.getElementById('c-name').value = p.name;
+  document.getElementById('c-cat').value = p.category;
+  PARAM_META.forEach(pm=>{
+    const sel = document.getElementById('sel-'+pm.key);
+    if(sel) sel.value = p.params[pm.key];
+  });
+  const lev = document.getElementById('lev-toggle');
+  if(p.leverage) lev.classList.add('on'); else lev.classList.remove('on');
+  document.getElementById('lev-warn').style.display = p.leverage?'block':'none';
+  updateCalc();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ============================================================
+// CALCULATOR
+// ============================================================
+let calcLeverage = false;
+const calcParams = { capRisk:1, volatility:1, credit:1, liquidity:1, complexity:1, horizon:1 };
+
+function initCalcParams(){
+  const grid = document.getElementById('param-grid');
+  grid.innerHTML = PARAM_META.map(pm=>`
+    <div class="param-block" id="block-${pm.key}">
+      <div class="param-label">${pm.label}</div>
+      <div class="param-weight">Weight: ${pm.weight}</div>
+      <select class="param-select" id="sel-${pm.key}" onchange="onParamChange('${pm.key}',this)">
+        ${pm.levels.map((l,i)=>`<option value="${i+1}">${i+1} — ${l}</option>`).join('')}
+      </select>
+      <div class="param-note" id="note-${pm.key}"></div>
+    </div>`).join('');
+
+  // Reference table
+  const rtbody = document.getElementById('ref-tbody');
+  rtbody.innerHTML = [1,2,3,4,5,6].map(lvl=>`
+    <tr>
+      <td><span class="r-badge r${lvl}" style="width:20px;height:20px;font-size:11px">${lvl}</span></td>
+      ${PARAM_META.map(pm=>`<td>${pm.levels[lvl-1]}</td>`).join('')}
+    </tr>`).join('');
+}
+
+function onParamChange(key, sel){
+  calcParams[key] = parseInt(sel.value);
+  document.getElementById('block-'+key).classList.add('active');
+  setTimeout(()=>document.getElementById('block-'+key).classList.remove('active'),600);
+  updateCalc();
+}
+
+function toggleLeverage(){
+  calcLeverage = !calcLeverage;
+  const tog = document.getElementById('lev-toggle');
+  tog.classList.toggle('on', calcLeverage);
+  document.getElementById('lev-warn').style.display = calcLeverage?'block':'none';
+  updateCalc();
+}
+
+function updateCalc(){
+  const raw = getRawScore(calcParams);
+  const rating = computeRating(calcParams, calcLeverage);
+  const color = RATING_COLORS[rating];
+  const name = RATING_LABELS[rating];
+
+  // Result card
+  const card = document.getElementById('result-card');
+  card.style.borderTopColor = color;
+  document.getElementById('r-num').textContent = rating;
+  document.getElementById('r-num').style.color = color;
+  document.getElementById('r-name').textContent = name;
+  document.getElementById('r-name').style.color = color;
+  document.getElementById('r-raw').textContent = `Raw weighted score: ${raw.toFixed(3)}${calcLeverage?' (Leverage override: → 6)':''}`;
+
+  // Scale dots
+  document.getElementById('r-scale').innerHTML = [1,2,3,4,5,6].map(r=>
+    `<div class="r-scale-dot" style="background:${r<=rating?RATING_COLORS[r]:'#E9ECEF'};width:${r===rating?28:18}px;height:${r===rating?10:6}px;border-radius:4px;transition:all .3s"></div>`
+  ).join('');
+
+  // Contribution chart
+  const maxContrib = 6; // max possible weighted contribution per param
+  document.getElementById('contrib-chart').innerHTML = PARAM_META.map(pm=>{
+    const contrib = calcParams[pm.key] * WEIGHTS[pm.key];
+    const maxC = 6 * WEIGHTS[pm.key];
+    const pct = (contrib/maxC)*100;
+    return `<div class="contrib-row">
+      <span class="contrib-pname">${pm.label.replace(' Risk','').replace('Investment ','')}</span>
+      <div class="contrib-track">
+        <div class="contrib-fill" style="width:${pct}%;background:${color}"></div>
+      </div>
+      <span class="contrib-val">${contrib.toFixed(2)}</span>
+    </div>`;
+  }).join('');
+
+  // Suitability map
+  const effRating = rating;
+  document.getElementById('suitability-map').innerHTML = [1,2,3,4,5,6].map(cr=>{
+    const gap = effRating - cr;
+    let label, bgcl;
+    if(gap<=0)  { label='✅ Suitable'; bgcl='#D1FAE5'; }
+    else if(gap===1){ label='⚠ With acknowledgment'; bgcl='#FEF3C7'; }
+    else if(gap===2){ label='🚫 Formal override required'; bgcl='#FEE2E2'; }
+    else            { label='🛑 Not permitted'; bgcl='#FEE2E2'; }
+    return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #F1F3F5">
+      <span class="r-badge r${cr}">${cr}</span>
+      <span style="font-size:12px;font-weight:600;color:var(--gray-700)">Client IR${cr} — ${RATING_LABELS[cr]}</span>
+      <span style="margin-left:auto;font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;background:${bgcl}">${label}</span>
+    </div>`;
+  }).join('');
+}
+
+function saveToLibrary(){
+  const name = document.getElementById('c-name').value.trim();
+  const cat  = document.getElementById('c-cat').value;
+  if(!name){ showToast('⚠ Please enter a product name first'); return; }
+  if(!cat)  { showToast('⚠ Please select a category first'); return; }
+  const existing = products.findIndex(p=>p.name===name);
+  const params = {...calcParams};
+  const entry = { name, category:cat, params, leverage:calcLeverage, rating:computeRating(params,calcLeverage), rawScore:getRawScore(params) };
+  if(existing>=0){ products[existing]=entry; showToast('✅ Product updated in library'); }
+  else { products.push(entry); showToast('✅ Product added to library'); }
+  renderLibrary();
+}
+
+function clearCalc(){
+  document.getElementById('c-name').value='';
+  document.getElementById('c-cat').value='';
+  document.getElementById('c-subcat').value='';
+  PARAM_META.forEach(pm=>{ calcParams[pm.key]=1; document.getElementById('sel-'+pm.key).value=1; });
+  calcLeverage=false;
+  document.getElementById('lev-toggle').classList.remove('on');
+  document.getElementById('lev-warn').style.display='none';
+  updateCalc();
+}
+
+// ============================================================
+// EXPORT
+// ============================================================
+function exportLibraryCSV(){
+  const header = ['Product Name','Category','Risk Rating','Rating Label','Capital at Risk','Volatility','Credit Risk','Liquidity','Complexity','Horizon','Raw Score','Leverage'];
+  const rows = products.map(p=>[
+    `"${p.name}"`, p.category, p.rating, RATING_LABELS[p.rating],
+    p.params.capRisk, p.params.volatility, p.params.credit, p.params.liquidity, p.params.complexity, p.params.horizon,
+    p.rawScore.toFixed(3), p.leverage?'Yes':'No'
+  ]);
+  const csv = [header,...rows].map(r=>r.join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download = 'KhanBank_Product_Risk_Ratings.csv';
+  a.click();
+  showToast('📥 CSV exported');
+}
+
+// ============================================================
+// UI HELPERS
+// ============================================================
+function switchTab(id, btn){
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  if(btn) btn.classList.add('active');
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+document.addEventListener('DOMContentLoaded',()=>{
+  initCategoryFilters();
+  renderLibrary();
+  initCalcParams();
+  updateCalc();
+});
+</script>
+</body>
+</html>
